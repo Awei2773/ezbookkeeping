@@ -169,3 +169,6 @@ ezbookkeeping
 # Runtime data backups created by scripts/sync-upstream.sh
 /data.bak*/
 /deploy/
+/data-prod/
+/storage-prod/
+/log-prod/
