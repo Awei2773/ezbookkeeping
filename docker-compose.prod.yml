@@ -1,0 +1,44 @@
+# Production deployment for ezBookkeeping — pre-built static assets, fast
+# first-screen load, suitable for daily use and remote (Tailscale) access.
+#
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Serves on :8082 (kept separate from the dev backend :8080 / Vite :8081).
+#
+# The pre-built binary + frontend live in ./deploy (git-ignored). Rebuild it
+# with (runs in a container, no host Go/Node needed):
+#
+#   docker run --rm -u 1000:1000 -v "$PWD":/app -w /app \
+#     -v ezbookkeeping_go-mod-cache:/go/pkg/mod -e GOMAXPROCS=2 -e GOFLAGS=-p=2 \
+#     --memory 4g ezbookkeeping-dev-build:local \
+#     ./build.sh package --no-lint --no-test -o /tmp/ezbk.tar.gz
+#   tar xzf /tmp/ezbk.tar.gz -C deploy
+#
+# (The full in-image build docker/dev/Dockerfile.prod is equivalent but needs
+#  more RAM than this NAS has free alongside its other services.)
+
+services:
+  app:
+    image: golang:1.27.3-alpine3.24
+    user: "1000:1000"
+    working_dir: /ezbookkeeping
+    command: ["/ezbookkeeping/ezbookkeeping", "server", "run", "--conf-path=/ezbookkeeping/conf/ezbookkeeping.ini"]
+    environment:
+      # Serve on 8082; domain = LAN IP so asset URLs work from other machines.
+      EBK_SERVER_HTTP_PORT: "8082"
+      EBK_SERVER_DOMAIN: ${EBK_SERVER_DOMAIN:-192.168.1.6}
+      EBK_WORK_DIR: /ezbookkeeping
+      TZ: ${TZ:-Asia/Shanghai}
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./deploy:/ezbookkeeping:ro
+      # Separate data dirs from dev so prod and dev backend never fight over
+      # the same SQLite file and can run simultaneously.
+      - ./data-prod:/ezbookkeeping/data
+      - ./storage-prod:/ezbookkeeping/storage
+      - ./log-prod:/ezbookkeeping/log
+    restart: unless-stopped

@@ -15,8 +15,11 @@
 |---|---|
 | `docker/dev/Dockerfile.build` | 后端/打包构建镜像（Go 1.27 + gcc/CGO + Node 26 + git，uid 1000） |
 | `docker/dev/Dockerfile.frontend` | 前端 dev 镜像（node:26 + git） |
+| `docker/dev/Dockerfile.prod` | 生产镜像（预编译静态资源，供日常/远程访问，端口 8082） |
 | `docker/dev/backend-dev.sh` | 后端热重载（轮询，NAS inotify 降级方案） |
 | `docker-compose.dev.yml` | 开发环境编排（backend/frontend/db[可选]） |
+| `docker-compose.prod.yml` | 生产部署编排（app，端口 8082） |
+| `.dockerignore` | 构建上下文排除 node_modules/数据/密钥等 |
 | `.env.example` | 环境变量模板（不入库的 `.env` 从它复制） |
 | `docs/dev/DEV_WORKFLOW.md` | 二开工作流文档 |
 | `docs/dev/CHANGELOG.md` | 本清单 |

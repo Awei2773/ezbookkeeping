@@ -1,0 +1,30 @@
+# Production image for ezBookkeeping.
+#
+# Reuses the dev build image (Go 1.27 + Node 26 + gcc/CGO, GOPROXY=goproxy.io
+# baked in) to build the package, then copies the result into a clean Alpine
+# runtime. Tests/lint are skipped here (they run separately in the test gate).
+#
+# Build:
+#   docker build -f docker/dev/Dockerfile.prod --memory 4g -t ezbookkeeping-prod:local .
+
+FROM ezbookkeeping-dev-build:local AS builder
+WORKDIR /app
+COPY . .
+
+# Limit Go build parallelism so the full static build stays within the NAS's
+# available memory (the -a + static-link backend build is the memory hog).
+ENV GOMAXPROCS=2 GOFLAGS=-p=2
+
+# Build backend + frontend and assemble the package/ directory.
+RUN ./build.sh package --no-lint --no-test -o /tmp/ezbk.tar.gz
+
+# --- runtime -----------------------------------------------------------------
+FROM alpine:3.24.3
+RUN addgroup -S -g 1000 ezbookkeeping \
+    && adduser -S -G ezbookkeeping -u 1000 ezbookkeeping \
+    && apk --no-cache add tzdata
+WORKDIR /ezbookkeeping
+COPY --from=builder --chown=1000:1000 /app/package /ezbookkeeping
+USER 1000:1000
+EXPOSE 8080
+ENTRYPOINT ["/ezbookkeeping/ezbookkeeping", "server", "run"]

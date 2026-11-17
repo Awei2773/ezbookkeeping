@@ -28,6 +28,28 @@ cp .env.example .env
 - 日志：`docker compose -f docker-compose.dev.yml logs -f backend frontend`
 - 停止：`./scripts/dev-down.sh`
 
+> ⚠️ 开发环境（Vite）首屏较慢是正常现象：Vite 按需编译数百个模块，适合写代码 +
+> 热更新，**不适合当日常/远程访问入口**。要「用」这个应用请看下一节的「生产部署」。
+
+---
+
+## 一·五、生产部署（日常使用 / 其他设备远程访问）
+
+生产构建把前端**预编译**成少数几个静态文件，首屏快、往返少，适合 LAN 和
+Tailscale 远程访问：
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build   # 首次构建约 10 分钟
+# 打开 http://<NAS-IP>:8082/
+```
+
+- 服务端口：`:8082`（与 dev 的 8080/8081 分开）
+- 数据：与 dev 共用 `./data ./storage ./log`（SQLite），**不要同时跑 dev backend 和 prod**
+- 停止：`docker compose -f docker-compose.prod.yml down`
+
+跨机访问时 `.env` 里 `EBK_SERVER_DOMAIN` 要设为 NAS 的局域网 IP（如 `192.168.1.6`），
+否则头像/图标/图片等 URL 会指向每台机器自己的 `localhost` 而失效。
+
 ---
 
 ## 二、常见故障 5 条

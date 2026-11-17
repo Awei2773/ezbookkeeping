@@ -1,0 +1,22 @@
+# Excluded from Docker build context.
+# Note: .git is intentionally KEPT because build.sh and vite.config.ts read the
+# commit hash from it (git rev-parse / git-rev-sync) for version metadata.
+
+# Dependencies & build artifacts
+node_modules/
+dist/
+package/
+*.tar.gz
+
+# Runtime data (never bake into an image)
+data/
+storage/
+log/
+data.bak*/
+
+# Local secrets & scratch
+.env
+deploy/
+
+# Compiled binary
+ezbookkeeping
