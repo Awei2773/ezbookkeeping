@@ -105,6 +105,9 @@ function injectFramework7CssFile({ htmlFileName, placeHolders }: { htmlFileName:
 export default defineConfig(() => {
     const licenseContent = fs.readFileSync('./LICENSE', { encoding: 'utf-8' });
     const buildUnixTime = process.env['buildUnixTime'] || '';
+    // Backend proxy target for the dev server. Defaults to the local backend;
+    // in the Docker dev environment it is overridden to the backend service.
+    const devProxyTarget = process.env['EBK_DEV_PROXY_TARGET'] || 'http://127.0.0.1:8080/';
 
     const options: UserConfig = {
         root: SRC_DIR,
@@ -356,51 +359,51 @@ export default defineConfig(() => {
             strictPort: true,
             proxy: {
                 '/server_settings.js': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/mobile/server_settings.js': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/desktop/server_settings.js': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/oauth2': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/api': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/mcp': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/avatar': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/pictures': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/icons': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/qrcode': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/proxy': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 },
                 '/_AMapService': {
-                    target: 'http://127.0.0.1:8080/',
+                    target: devProxyTarget,
                     changeOrigin: true
                 }
             }

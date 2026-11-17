@@ -1,0 +1,49 @@
+# Dev / build image for ezBookkeeping.
+# One container holding everything needed to build the backend (Go + gcc/CGO),
+# build the frontend (Node 26 + npm) and package a release tarball.
+#
+# Base and tool versions are kept identical to upstream's own multi-stage
+# Dockerfile (golang:1.27.3-alpine3.24, node:26.13.0) so behaviour matches CI.
+
+FROM golang:1.27.3-alpine3.24
+
+# CGO build chain + packaging tools (matches upstream be-builder stage)
+RUN apk add --no-cache \
+        git \
+        gcc \
+        g++ \
+        libc-dev \
+        tar \
+        curl \
+        xz
+
+# Node.js 26 + npm (matches upstream fe-builder node:26.13.0-alpine3.24)
+ENV NODE_VERSION=26.13.0
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64-musl.tar.xz" \
+        -o /tmp/node.tar.xz \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+    && rm -f /tmp/node.tar.xz \
+    && node --version \
+    && npm --version
+
+# Non-root build/run user matching the NAS source owner (uid 1000).
+# gid 1000 is used per the team convention; owner-write access to the bind
+# mounted source (owned by uid 1000) is what actually matters.
+RUN addgroup -S -g 1000 dev \
+    && adduser -S -u 1000 -G dev -h /home/dev dev \
+    && mkdir -p /home/dev /go/pkg/mod \
+    && chown -R dev:dev /home/dev /go
+
+ENV HOME=/home/dev
+
+# Go module proxy defaults. proxy.golang.org / sum.golang.org (Google) and
+# github.com over HTTPS are unreachable from this NAS, so default to goproxy.io
+# (Cloudflare CDN, reachable over IPv4) and disable the online checksum DB
+# (go.sum in the repo is still enforced). Override via environment if the
+# network changes.
+ENV GOPROXY=https://goproxy.io,direct \
+    GOSUMDB=off
+
+WORKDIR /app
+
+CMD ["sh"]

@@ -1,0 +1,17 @@
+# Dev image for the frontend Vite dev server.
+# Extends the same node base as upstream's fe-builder and only adds what the
+# dev server needs: git (vite.config.ts reads the commit hash via git-rev-sync)
+# and a non-root user matching the NAS source owner (uid 1000).
+
+FROM node:26.13.0-alpine3.24
+
+# git is required by vite.config.ts (git-rev-sync reads the commit hash).
+# The base image already ships a non-root user "node" (uid 1000 / gid 1000),
+# which matches the NAS source owner, so we reuse it instead of creating one.
+RUN apk add --no-cache git
+
+ENV HOME=/home/node
+
+WORKDIR /app
+
+CMD ["sh"]

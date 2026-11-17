@@ -1,0 +1,98 @@
+# Development environment for ezBookkeeping (2nd-development mainline).
+#
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Services:
+#   backend   - Go backend, hot-reload on .go change (polling), port 8080
+#   frontend  - Vite dev server (HMR), port 8081, proxies /api -> backend:8080
+#   db        - OPTIONAL MySQL for validating the "mysql" database type
+#               (commented out; SQLite is the default and needs no extra service)
+#
+# All writable runtime state is kept out of the git tree: go module cache is a
+# named volume, and data/storage/log live under ./data ./storage ./log (all
+# git-ignored). Containers run as uid 1000 to match the source owner.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/dev/Dockerfile.build
+    image: ezbookkeeping-dev-build:local
+    user: "1000:1000"
+    working_dir: /app
+    command: ["sh", "/app/docker/dev/backend-dev.sh"]
+    # Load .env (TZ + every EBK_* setting) straight into the container, so any
+    # EBK_<SECTION>_<ITEM> variable can be overridden without editing this file.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      EBK_CONF_PATH: /app/conf/ezbookkeeping.ini
+      EBK_WORK_DIR: /app
+      # Go module proxy (proxy.golang.org / github.com HTTPS unreachable from this NAS)
+      GOPROXY: ${GOPROXY:-https://goproxy.io,direct}
+      GOSUMDB: ${GOSUMDB:-off}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/app
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/home/dev/.cache/go-build
+    # Cap memory so a heavy (re)build can never starve the NAS host.
+    mem_limit: 3g
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/dev/Dockerfile.frontend
+    image: ezbookkeeping-dev-frontend:local
+    user: "1000:1000"
+    working_dir: /app
+    command: ["sh", "-c", "npm install && npm run serve"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Backend target for Vite's /api proxy. Inside Docker the backend is a
+      # separate service, not 127.0.0.1 (vite.config.ts reads this env var).
+      EBK_DEV_PROXY_TARGET: http://backend:8080/
+      # Give Node a larger heap: Vite's dependency pre-bundling (monaco-editor,
+      # echarts, vuetify, framework7) is memory-heavy and OOMs at the default
+      # worker heap inside a small cgroup.
+      NODE_OPTIONS: "--max-old-space-size=3072"
+      # Polling fallback for NAS bind mounts where inotify is unreliable.
+      # Uncomment if HMR stops picking up changes over the network share.
+      # CHOKIDAR_USEPOLLING: "true"
+      # CHOKIDAR_INTERVAL: "1000"
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./:/app
+    depends_on:
+      - backend
+    # Cap memory so npm install / vite dev can never starve the NAS host.
+    # Vite dep pre-bundling needs headroom; 4g keeps it under the host's limit
+    # while still leaving the NAS room for its other services.
+    mem_limit: 4g
+    restart: unless-stopped
+
+  # Optional MySQL for validating the "mysql" database type. Enable by
+  # uncommenting, then set in .env:
+  #   EBK_DATABASE_TYPE=mysql
+  #   (and adjust backend DB host/user/pass via EBK_DATABASE_* env vars)
+  #
+  # db:
+  #   image: mysql:8.4
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: ezbookkeeping
+  #     MYSQL_DATABASE: ezbookkeeping
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - mysql-data:/var/lib/mysql
+
+volumes:
+  go-mod-cache:
+  go-build-cache:
+  # mysql-data:
